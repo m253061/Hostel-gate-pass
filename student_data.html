@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hostel Pass Request System</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f4f7f6; }
+    .card { background: white; padding: 25px; border-radius: 8px; max-width: 500px; margin: auto; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    input, select, button, textarea { width: 100%; padding: 10px; margin: 8px 0; box-sizing: border-box; }
+    button { background-color: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px; }
+    button:hover { background-color: #0056b3; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Login Section -->
+  <div id="loginSection" class="card">
+    <h2>Student Login</h2>
+    <input type="text" id="loginUserId" placeholder="Roll Number / User ID">
+    <input type="password" id="loginPassword" placeholder="Password">
+    <button onclick="login()">Login</button>
+  </div>
+
+  <!-- Pass Form Section -->
+  <div id="passSection" class="card hidden">
+    <h2>Hostel Pass Form</h2>
+    <form id="passForm">
+      <input type="text" id="roll_no" placeholder="Roll Number" required readonly>
+      <input type="text" id="name" placeholder="Full Name" required readonly>
+      <input type="tel" id="phone_no" placeholder="Phone Number" required>
+      <input type="text" id="department" placeholder="Department" required>
+      <textarea id="purpose" placeholder="Purpose of Outing" required></textarea>
+      <label>Date Out & Time Out:</label>
+      <input type="date" id="date_out" required>
+      <input type="time" id="time_out" required>
+      <label>Date In & Time In:</label>
+      <input type="date" id="date_in" required>
+      <input type="time" id="time_in" required>
+      <button type="button" onclick="submitPass()">Submit Pass Request</button>
+    </form>
+  </div>
+
+  <script>
+    const API_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL";
+    let currentUser = null;
+
+    async function login() {
+      const user_id = document.getElementById("loginUserId").value;
+      const password = document.getElementById("loginPassword").value;
+
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "login", user_id, password })
+      });
+      const data = await res.json();
+
+      if (data.success && data.user.role === "student") {
+        currentUser = data.user;
+        document.getElementById("loginSection").classList.add("hidden");
+        document.getElementById("passSection").classList.remove("hidden");
+        document.getElementById("roll_no").value = currentUser.user_id;
+        document.getElementById("name").value = currentUser.name;
+      } else {
+        alert(data.message || "Unauthorized access.");
+      }
+    }
+
+    async function submitPass() {
+      const payload = {
+        action: "submit_pass",
+        roll_no: document.getElementById("roll_no").value,
+        name: document.getElementById("name").value,
+        phone_no: document.getElementById("phone_no").value,
+        department: document.getElementById("department").value,
+        purpose: document.getElementById("purpose").value,
+        time_out: document.getElementById("time_out").value,
+        time_in: document.getElementById("time_in").value,
+        date_out: document.getElementById("date_out").value,
+        date_in: document.getElementById("date_in").value
+      };
+
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      alert(data.message);
+      if(data.success) document.getElementById("passForm").reset();
+    }
+  </script>
+</body>
+</html>

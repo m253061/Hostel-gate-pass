@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Warden Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 30px; background: #fafafa; }
+    .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+    th { background-color: #333; color: white; }
+    .btn-approve { background-color: #28a745; color: white; border: none; padding: 6px 12px; cursor: pointer; }
+    .btn-reject { background-color: #dc3545; color: white; border: none; padding: 6px 12px; cursor: pointer; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Login Section -->
+  <div id="loginSection" class="card" style="max-width: 400px; margin: auto;">
+    <h2>Warden Portal Login</h2>
+    <input type="text" id="wardenId" placeholder="Warden User ID" style="width:100%; padding:8px; margin: 5px 0;">
+    <input type="password" id="wardenPassword" placeholder="Password" style="width:100%; padding:8px; margin: 5px 0;">
+    <button onclick="login()" style="width:100%; padding:10px; margin-top:10px; background:#333; color:white;">Login</button>
+  </div>
+
+  <!-- Dashboard Section -->
+  <div id="dashboardSection" class="card hidden">
+    <h2>Student Pass Requests</h2>
+    <button onclick="loadRequests()">Refresh Requests</button>
+    <table>
+      <thead>
+        <tr>
+          <th>Roll No</th>
+          <th>Name</th>
+          <th>Dept</th>
+          <th>Purpose</th>
+          <th>Out (Date/Time)</th>
+          <th>In (Date/Time)</th>
+          <th>Status</th>
+          <th>Approved By</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="requestTableBody"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const API_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL";
+    let currentWarden = null;
+
+    async function login() {
+      const user_id = document.getElementById("wardenId").value;
+      const password = document.getElementById("wardenPassword").value;
+
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "login", user_id, password })
+      });
+      const data = await res.json();
+
+      if (data.success && data.user.role === "warden") {
+        currentWarden = data.user;
+        document.getElementById("loginSection").classList.add("hidden");
+        document.getElementById("dashboardSection").classList.remove("hidden");
+        loadRequests();
+      } else {
+        alert(data.message || "Unauthorized warden login.");
+      }
+    }
+
+    async function loadRequests() {
+      const res = await fetch(`${API_URL}?action=get_all_passes`);
+      const response = await res.json();
+      
+      const tbody = document.getElementById("requestTableBody");
+      tbody.innerHTML = "";
+
+      if (response.success) {
+        response.data.forEach(row => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${row.roll_no}</td>
+            <td>${row.name}</td>
+            <td>${row.department}</td>
+            <td>${row.purpose}</td>
+            <td>${row.date_out}${row.time_out}</td>
+            <td>${row.date_in}${row.time_in}</td>
+            <td><strong>${row.pass_status}</strong></td>
+            <td>${row.approved_by || "-"}</td>
+            <td>
+              ${row.pass_status === "Pending" ? `
+                <button class="btn-approve" onclick="updateStatus('${row.roll_no}', '${row.date_out}', 'Approved')">Approve</button>
+                <button class="btn-reject" onclick="updateStatus('${row.roll_no}', '${row.date_out}', 'Rejected')">Reject</button>
+              ` : 'N/A'}
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+    }
+
+    async function updateStatus(roll_no, date_out, status) {
+      const payload = {
+        action: "update_pass_status",
+        roll_no: roll_no,
+        date_out: date_out,
+        pass_status: status,
+        approved_by: currentWarden.name
+      };
+
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      alert(data.message);
+      loadRequests();
+    }
+  </script>
+</body>
+</html>
